@@ -25,18 +25,37 @@
 #include <errno.h>
 #include <stdlib.h>
 
+int print_jpeg_metadata_size(char *filename);
+
 int main(int argc, char **argv) {
 
-  if (argc!=2 || (argc==2 && !strcmp(argv[1],"-h"))) {
-    fprintf(stderr,"usage: jpeg_metadata_size <jpeg_file>\n");
+  int i;
+  int err=0;
+
+  if (argc<2 || !strcmp(argv[1],"-h")) {
+    fprintf(stderr,"usage: jpeg_metadata_size [-h] <jpeg_file> [<jpeg_file> ...]\n");
     exit(1);
   }
 
-  FILE *f=fopen(argv[1],"r");
-  if (!f) exit(errno);
+  for (i=1; i<argc; ++i) {
+    err|=print_jpeg_metadata_size(argv[i]);
+  }
+
+  return err;
+
+}
+
+int print_jpeg_metadata_size(char *filename) {
+
+  FILE *f=fopen(filename,"r");
+  if (!f) {
+    fprintf(stderr,"error: cannot open file %s\n",filename);
+    return errno;
+  }
 
   int c; 
   int lsb=0;
+  int err=0;
   while ((c=fgetc(f))!=EOF) {
 
     if (lsb) {
@@ -48,8 +67,8 @@ int main(int argc, char **argv) {
       if (c!=0xd8) {
 
         if ((c&0xf0)!=0xe0) {
-          printf("%d %s\n",ftell(f)-2,argv[1]);
-          exit(0);
+          printf("%d %s\n",ftell(f)-2,filename);
+          break;
         }
 
         length=0;
@@ -60,9 +79,17 @@ int main(int argc, char **argv) {
         if ((d=fgetc(f))==EOF) break;
         length+=d;
 
-        if (length<2) exit(1);
+        if (length<2) {
+          fprintf(stderr,"error: invalid segment length in %s\n",filename);
+          err=1;
+          break;
+        }
 
-        if (length && fseek(f,length-2,SEEK_CUR)<0) exit(errno);
+        if (length && fseek(f,length-2,SEEK_CUR)<0) {
+          fprintf(stderr,"error: i/o error with %s\n",filename);
+          err=errno;
+          break;
+        }
 
       }
          
@@ -74,6 +101,7 @@ int main(int argc, char **argv) {
   }
 
   fclose(f);
-  return 0;
+  return err;
+
 }
 
