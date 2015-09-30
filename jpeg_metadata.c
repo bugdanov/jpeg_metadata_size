@@ -158,12 +158,6 @@ int print_jpeg_metadata(char *filename) {
          }
          offset+=length;
         }
-/*        if (fseek(f,offset,SEEK_SET)<0) {
-          fprintf(stderr,"error: read error while processing %s\n",filename);
-          break;
-        }
-        */
-
       }
          
       lsb=0;
@@ -174,15 +168,6 @@ int print_jpeg_metadata(char *filename) {
   }
 
   fclose(f);
-
-  /*
-  // write filename
-  int len=strlen(filename)+1;
-  if (fwrite(filename,1,len,stdout)!=len) {
-    fprintf(stderr,"error: write error while processing %s\n",filename);
-    exit(1);
-  }
-  */
 
   // write index
   long file_offset=ftell(output_file);
@@ -198,17 +183,9 @@ int print_jpeg_metadata(char *filename) {
     exit(1);
   }
 
-  uint32_t size32=(uint32_t)metadata_size;
-
-  // write metadata size
-  if (fwrite(&size32,1,sizeof(size32),output_file)!=sizeof(size32)) {
-    fprintf(stderr,"error: write error while processing %s\n",filename);
-    exit(1);
-  }
-
   if (metadata_size) {
     // write metadata        
-    if (fwrite(buf,1,size32,output_file)!=size32){
+    if (fwrite(buf,1,metadata_size,output_file)!=metadata_size){
       fprintf(stderr,"error: write error while processing %s\n",filename);
       exit(1);
     }
