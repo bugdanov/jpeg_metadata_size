@@ -31,6 +31,10 @@
 
 char *buf=0;
 size_t bufsize=BUF_INCREMENT;
+FILE *index_file;
+FILE *output_file;
+char *index_filename="jpeg_metadata_index.bin";
+char *output_filename="jpeg_metadata.bin";
 
 int print_jpeg_metadata(char *filename);
 
@@ -48,6 +52,18 @@ int main(int argc, char **argv) {
   if (!buf) {
     fprintf(stderr,"out of memory !\n");
     exit(1);
+  }
+
+  index_file=fopen(index_filename,"w");
+  if (!index_file) {
+    fprintf(stderr,"error: cannot open output file %s\n",index_filename);
+    return errno;
+  }
+
+  output_file=fopen(output_filename,"w");
+  if (!output_file) {
+    fprintf(stderr,"error: cannot open output file %s\n",output_filename);
+    return errno;
   }
 
   for (i=1; i<argc; ++i) {
@@ -89,12 +105,12 @@ int print_jpeg_metadata(char *filename) {
           // write results
           metadata_size=offset-2;
           if (metadata_size!=ftell(f)-2 || metadata_size<0) {
-            fprintf(stderr,"unexpected error\n");
-            break;
+            fprintf(stderr,"unexpected error while processing %s\n",filename);
+            exit(1);
           }
           err=0;
 
-          fprintf(stderr,"%d %s\n",metadata_size,filename);
+          fprintf(stderr,"%li %s\n",metadata_size,filename);
           break;
         }
 
@@ -102,21 +118,21 @@ int print_jpeg_metadata(char *filename) {
 
         if ((d=fgetc(f))==EOF) {
           fprintf(stderr,"error: unexpected end of file %s\n",filename);
-          break;
+          exit(1);
         }
         buf[offset++]=d;
         length+=d<<8;
 
         if ((d=fgetc(f))==EOF) {
           fprintf(stderr,"error: unexpected end of file %s\n",filename);
-          break;
+          exit(1);
         }
         buf[offset++]=d;
         length+=d;
 
         if (length<2) {
           fprintf(stderr,"error: invalid segment length in %s\n",filename);
-          break;
+          exit(1);
         }
 
         length-=2;
@@ -126,7 +142,7 @@ int print_jpeg_metadata(char *filename) {
           char *newbuf=realloc(buf,newsize);
           if (!newbuf) {
             fprintf(stderr,"error: out of memory while processing %s\n",filename);
-            break;
+            exit(1);
           }
           buf=newbuf;
           bufsize=newsize;
@@ -138,7 +154,7 @@ int print_jpeg_metadata(char *filename) {
         if (length) {
           if (fread(buf+offset, 1, length, f)!=length){
            fprintf(stderr,"error: read error while processing %s\n",filename);
-           break;
+           exit(1);
          }
          offset+=length;
         }
@@ -159,9 +175,25 @@ int print_jpeg_metadata(char *filename) {
 
   fclose(f);
 
+  /*
   // write filename
   int len=strlen(filename)+1;
   if (fwrite(filename,1,len,stdout)!=len) {
+    fprintf(stderr,"error: write error while processing %s\n",filename);
+    exit(1);
+  }
+  */
+
+  // write index
+  long file_offset=ftell(output_file);
+  if (file_offset<0) {
+    fprintf(stderr,"error: write error while processing %s\n",filename);
+    exit(1);
+  }
+
+  uint32_t file_offset32=(uint32_t)file_offset;
+
+  if (fwrite(&file_offset32,1,sizeof(file_offset32),index_file)!=sizeof(file_offset32)) {
     fprintf(stderr,"error: write error while processing %s\n",filename);
     exit(1);
   }
@@ -169,20 +201,20 @@ int print_jpeg_metadata(char *filename) {
   uint32_t size32=(uint32_t)metadata_size;
 
   // write metadata size
-  if (fwrite(&size32,1,sizeof(size32),stdout)!=sizeof(size32)) {
+  if (fwrite(&size32,1,sizeof(size32),output_file)!=sizeof(size32)) {
     fprintf(stderr,"error: write error while processing %s\n",filename);
     exit(1);
   }
 
   if (metadata_size) {
     // write metadata        
-    if (fwrite(buf,1,size32,stdout)!=size32){
+    if (fwrite(buf,1,size32,output_file)!=size32){
       fprintf(stderr,"error: write error while processing %s\n",filename);
       exit(1);
     }
   }
 
-  fflush(stdout);
+  fflush(output_file);
 
   return err;
 
