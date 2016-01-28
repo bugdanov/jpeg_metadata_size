@@ -124,33 +124,52 @@ FILE *isJpegFile(char *filename) {
 int print_jpeg_sha256(FILE *f) {
 
   int pid;
-  int err;
+  int err=0;
 
-  pipe(mypipe);
+  if (pipe(mypipe)) {
+    return errno;
+  }
 
   if (!(pid=fork())) {
-    dup2(mypipe[1],STDOUT_FILENO);
+    if (dup2(mypipe[1],STDOUT_FILENO)==-1) {
+      err=errno;
+    }
+
     close(mypipe[0]);
     close(mypipe[1]);
 
-    err=jpeg_strip(f);
+    if (!err) {
+      err=jpeg_strip(f);
+    }
+
     exit(err);
 
   } else {
-    dup2(mypipe[0],STDIN_FILENO);
+    if (dup2(mypipe[0],STDIN_FILENO)==-1) {
+      err=errno;
+    }
+
     close(mypipe[0]);
     close(mypipe[1]);
 
+    if (err) {
+      return err;
+    }
+
     unsigned char hash[SHA256_DIGEST_LENGTH];
     err=sha256sum(stdin,hash);
-    if (!err) {
-      for (int i=0; i<SHA256_DIGEST_LENGTH; ++i) {
-        printf("%02x",hash[i]);
-      }
-      printf(" %s\n", filename);
+    if (err) {
+      return err;
     }
-    return err;
+
+    for (int i=0; i<SHA256_DIGEST_LENGTH; ++i) {
+      printf("%02x",hash[i]);
+    }
+    printf(" %s\n", filename);
+
+    return 0;
   }
+
 
 }
 
