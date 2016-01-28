@@ -106,6 +106,7 @@ int jpeg_strip(char *filename) {
       if (c==0xd8 || c==0xd9 || c==0xda) { // SOI or EOI or SOS
         // copy
         if (putchar(0xff)!=0xff || putchar(c)!=c) {
+          fprintf(stderr,"stdout: write error\n");
           err=1;
           break;
         }
@@ -117,11 +118,13 @@ int jpeg_strip(char *filename) {
           while ((c=fgetc(f))!=EOF) {
             d=c;
             if (putchar(d)!=d) {
+              fprintf(stderr,"stdout: write error\n");
               err=1;
               break;
             }
           }
           if (d!=0xd9) {
+            fprintf(stderr,"%s: last byte is not EOI\n",filename);
             err=1;
           }
           break;
@@ -132,19 +135,21 @@ int jpeg_strip(char *filename) {
         length=0;
 
         if ((d=fgetc(f))==EOF) {
+          fprintf(stderr,"%s: unexpected end of file\n",filename);
           err=1;
           break;
         }
         length+=d<<8;
 
         if ((d=fgetc(f))==EOF) {
+          fprintf(stderr,"%s: unexpected end of file\n",filename);
           err=1;
           break;
         }
         length+=d;
 
         if (length<2) {
-          fprintf(stderr,"error: invalid segment length in %s\n",filename);
+          fprintf(stderr,"%s: invalid segment length\n",filename);
           err=1;
           break;
         }
@@ -152,6 +157,7 @@ int jpeg_strip(char *filename) {
         // copy everything but jfif, exif, xmp, comments, iptc, and unknown markers
         if (strchr(dontStrip,c)) {
           if (putchar(0xff)!=0xff || putchar(c)!=c || putchar(d>>8)!=d>>8 || putchar(d&0xff)!=d&0xff) {
+            fprintf(stderr,"stdout: write error\n");
             err=1;
             break;
           }
@@ -159,20 +165,24 @@ int jpeg_strip(char *filename) {
           length-=2;
           while(length && ((c=fgetc(f))!=EOF)) {
             if (putchar(c)!=c) {
+              fprintf(stderr,"stdout: write error\n");
               err=1;
               break;
             }
             --length;
           }
-          if (err || length) {
+          if (length && !err) {
+            fprintf(stderr,"%s: unexpected end of file\n",filename);
             err=1;
+          }
+          if (err) {
             break;
           }
 
         } else {
           // skip segment
           if (length>2 && fseek(f,length-2,SEEK_CUR)<0) {
-            fprintf(stderr,"error: i/o error with %s\n",filename);
+            fprintf(stderr,"%s: seek failed\n",filename);
             err=errno;                         
             break;                             
           }
