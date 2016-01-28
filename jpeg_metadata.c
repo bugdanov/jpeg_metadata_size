@@ -27,7 +27,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#define BUF_INCREMENT 64*1024
+#define BUF_INCREMENT 128*1024
 
 char *buf=0;
 size_t bufsize=BUF_INCREMENT;
@@ -37,6 +37,7 @@ char *index_filename="jpeg_metadata_index.bin";
 char *output_filename="jpeg_metadata.bin";
 
 int print_jpeg_metadata(char *filename);
+void buf_resize(size_t size);
 
 int main(int argc, char **argv) {
 
@@ -44,7 +45,7 @@ int main(int argc, char **argv) {
   int err=0;
 
   if (argc<2 || !strcmp(argv[1],"-h")) {
-    fprintf(stderr,"usage: jpeg_metadata_size [-h] <jpeg_file> [<jpeg_file> ...]\n");
+    fprintf(stderr,"usage: jpeg_metadata [-h] <jpeg_file> [<jpeg_file> ...]\n");
     exit(1);
   }
 
@@ -91,6 +92,7 @@ int print_jpeg_metadata(char *filename) {
   while ((c=fgetc(f))!=EOF) {
 
     buf[offset++]=c;
+    if (offset>=bufsize) buf_resize(0);
 
     if (lsb) {
 
@@ -121,6 +123,7 @@ int print_jpeg_metadata(char *filename) {
           exit(1);
         }
         buf[offset++]=d;
+        if (offset>=bufsize) buf_resize(0);
         length+=d<<8;
 
         if ((d=fgetc(f))==EOF) {
@@ -128,6 +131,7 @@ int print_jpeg_metadata(char *filename) {
           exit(1);
         }
         buf[offset++]=d;
+        if (offset>=bufsize) buf_resize(0);
         length+=d;
 
         if (length<2) {
@@ -138,14 +142,7 @@ int print_jpeg_metadata(char *filename) {
         length-=2;
 
         if (offset+length>bufsize) {
-          size_t newsize=offset+length+BUF_INCREMENT;
-          char *newbuf=realloc(buf,newsize);
-          if (!newbuf) {
-            fprintf(stderr,"error: out of memory while processing %s\n",filename);
-            exit(1);
-          }
-          buf=newbuf;
-          bufsize=newsize;
+          buf_resize(length);
         }
 
         uint16_t segment=*((uint16_t*)(buf+offset-4));
@@ -195,5 +192,16 @@ int print_jpeg_metadata(char *filename) {
 
   return err;
 
+}
+
+void buf_resize(size_t size) {
+  size_t newsize=bufsize+size+BUF_INCREMENT;
+  char *newbuf=realloc(buf,newsize);
+  if (!newbuf) {
+    fprintf(stderr,"error: out of memory !\n");
+    exit(1);
+  }
+  buf=newbuf;
+  bufsize=newsize;
 }
 
