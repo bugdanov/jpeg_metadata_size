@@ -203,7 +203,7 @@ int jpeg_strip(FILE *f) {
         if (c==0xda) {  // SOS
           size_t count, wcount, written;
 
-          // copy the remaining of file
+          // copy everything from the SOS 
           while ((count=fread(buf,1,BUFSIZE,f))) {
             d=buf[count-1];
             wcount=0;
@@ -257,7 +257,7 @@ int jpeg_strip(FILE *f) {
 
         // copy everything but jfif, exif, xmp, comments, iptc, and unknown markers
         if (strchr(dontStrip,c)) {
-          if (putchar(0xff)!=0xff || putchar(c)!=c || putchar(d>>8)!=d>>8 || putchar(d&0xff)!=d&0xff) {
+          if (putchar(0xff)!=0xff || putchar(c)!=c || putchar(length>>8)!=length>>8 || putchar(d)!=d) {
             fprintf(stderr,"%s: stdout: write error\n",appName);
             err=1;
             break;
