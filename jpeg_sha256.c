@@ -110,7 +110,7 @@ FILE *isJpegFile(char *filename) {
   }
 
   size_t count=fread(header,1,6,f);
-  if (count!=6 || header[0]!=0xff && header[1]!=0xd8 && header[2]!=0xff && header[3]&0xfe!=0xe0) {
+  if (count!=6 || header[0]!=0xff || header[1]!=0xd8 || header[2]!=0xff || header[3]&0xfe!=0xe0) {
     fprintf(stderr,"%s: %s: not a jpeg\n",appName,filename);
     fclose(f);
     return 0;
