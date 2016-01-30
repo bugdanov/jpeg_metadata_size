@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -51,12 +52,16 @@ int mypipe[2];
 struct stat sb;
 unsigned char header[6];
 char *filename;
+int *failed;
 
 int main(int argc, char **argv) {
-
-  int err=0;
-
   appName=basename(argv[0]);
+
+  failed=mmap(NULL, sizeof(int), PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0); 
+  if (failed==MAP_FAILED) {
+    fprintf(stderr,"%s: mmap failed !\n",appName);
+    exit(1);
+  }
 
   if (argc<2 || !strcmp(argv[1],"-h")) {
     fprintf(stderr,"usage: %s [-h] <jpeg_file> [<jpeg_file> ...]\n",appName);
@@ -70,12 +75,13 @@ int main(int argc, char **argv) {
   }
 
   FILE *f;
+  int err=0;
   for (int i=1; i<argc; ++i) {
     filename=argv[i];
     if ((f=isJpegFile(filename))) {
       err|=print_jpeg_sha256(f);
     } else {
-      err=1;
+      err|=1;
     }
   }
   exit(err);
@@ -110,8 +116,8 @@ FILE *isJpegFile(char *filename) {
   }
 
   size_t count=fread(header,1,6,f);
-  if (count!=6 || header[0]!=0xff || header[1]!=0xd8 || header[2]!=0xff || header[3]&0xfe!=0xe0) {
-    fprintf(stderr,"%s: %s: not a jpeg\n",appName,filename);
+  if (count!=6 || header[0]!=0xff || header[1]!=0xd8 || header[2]!=0xff || (header[3]&0xfe)!=0xe0) {
+    fprintf(stderr,"%s: %s: not a jpeg %02x%02x %02x%02x\n",appName,filename,header[0],header[1],header[2],(header[3]&0xfe));
     fclose(f);
     return 0;
   }
@@ -125,6 +131,7 @@ int print_jpeg_sha256(FILE *f) {
 
   int pid;
   int err=0;
+  *failed=0;
 
   if (pipe(mypipe)) {
     return errno;
@@ -142,6 +149,10 @@ int print_jpeg_sha256(FILE *f) {
       err=jpeg_strip(f);
     }
 
+    if (err) {
+      *failed=1;
+    }
+
     exit(err);
 
   } else {
@@ -157,7 +168,7 @@ int print_jpeg_sha256(FILE *f) {
     }
 
     unsigned char hash[SHA256_DIGEST_LENGTH];
-    err=sha256sum(stdin,hash);
+    err=sha256sum(stdin,hash)|*failed;
     if (err) {
       return err;
     }
