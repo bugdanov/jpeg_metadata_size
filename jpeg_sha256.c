@@ -254,7 +254,7 @@ int jpeg_strip(FILE *f) {
           } else {
             if (d!=0xd9) {
               fprintf(stderr,"%s: %s: last byte %02x is not EOI\n",appName,filename,d);
-              err=1;
+          //    err=1;
             }
           }
           break;
