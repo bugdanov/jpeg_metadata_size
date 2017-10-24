@@ -20,3 +20,5 @@ jpeg_metadata: jpeg_metadata.c  Makefile
 
 jpeg_sha256: jpeg_sha256.c  Makefile
 	gcc -std=gnu11 jpeg_sha256.c sha256sum.c -O9 -o jpeg_sha256 -lcrypto
+
+.PHONY: all install uninstall
