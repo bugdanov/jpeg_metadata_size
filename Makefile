@@ -3,9 +3,9 @@ PREFIX?=/usr/local
 all: jpeg_metadata_size jpeg_metadata jpeg_sha256
 
 install: all
-	install -D jpeg_metadata_size ${PREFIX}/bin
-	install -D jpeg_metadata ${PREFIX}/bin
-	install -D jpeg_sha256 ${PREFIX}/bin
+	install -D jpeg_metadata_size -t ${PREFIX}/bin/
+	install -D jpeg_metadata -t ${PREFIX}/bin/
+	install -D jpeg_sha256 -t ${PREFIX}/bin/
 
 uninstall:
 	rm ${PREFIX}/bin/jpeg_metadata_size
