@@ -115,9 +115,9 @@ FILE *isJpegFile(char *filename) {
     return 0;
   }
 
-  size_t count=fread(header,1,6,f);
-  if (count!=6 || header[0]!=0xff || header[1]!=0xd8 || header[2]!=0xff || (header[3]&0xf0)!=0xe0) {
-    fprintf(stderr,"%s: %s: not a jpeg %02x%02x %02x%02x\n",appName,filename,header[0],header[1],header[2],(header[3]&0xfe));
+  size_t count=fread(header,1,2,f);
+  if (count!=2 || header[0]!=0xff || header[1]!=0xd8) {
+    fprintf(stderr,"%s: %s: not a jpeg %02x%02x\n",appName,filename,header[0],header[1]);
     fclose(f);
     return 0;
   }
@@ -198,22 +198,6 @@ int jpeg_strip(FILE *f) {
     fprintf(stderr,"%s: stdout: write error\n",appName);
     return 1;
   }
-
-  // skip first app segment
-  length=header[4]<<8;
-  length+=header[5];
-
-  if (length<2) {
-    fprintf(stderr,"%s: %s: invalid segment length\n",appName,filename);
-    return 1;
-  }
-
-  if (length>2 && fseek(f,length-2,SEEK_CUR)<0) {
-    err=errno;
-    fprintf(stderr,"%s: %s: seek failed\n",appName,filename);
-    return err;
-  }
-
 
   while ((c=fgetc(f))!=EOF) {
 
